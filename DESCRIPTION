@@ -7,7 +7,7 @@ Imports: stats, utils, methods, grDevices, graphics
 Authors@R: c(
     person("Giovanni", "Petris", email = "GPetris@uark.edu", role = c("aut", "cre")),
     person("Wally", "Gilks", role = "ctb", comment = "Author of original C code for ARMS"),
-    person("Richard", "Chandler", role="ctb", comment="Responsible for memory leak / BLAS fixes")
+    person("Richard", "Chandler", role="ctb", comment="Responsible for memory leak / BLAS fixes"))
 Maintainer: Richard Chandler <r.chandler@ucl.ac.uk>
 Description: Provides routines for Maximum likelihood,
     Kalman filtering and smoothing, and Bayesian
