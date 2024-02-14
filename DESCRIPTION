@@ -1,0 +1,17 @@
+Package: dlm
+Title: Bayesian and Likelihood Analysis of Dynamic Linear Models (unofficial version)
+Version: 1.1-601
+Date: 2024-02-13
+Suggests: MASS
+Imports: stats, utils, methods, grDevices, graphics
+Authors@R: c(
+    person("Giovanni", "Petris", email = "GPetris@uark.edu", role = c("aut", "cre")),
+    person("Wally", "Gilks", role = "ctb", comment = "Author of original C code for ARMS"),
+	person("Richard", "Chandler", role="ctb", comment="Responsible for memory leak / BLAS fixes")
+Maintainer: Richard Chandler <r.chandler@ucl.ac.uk>
+Description: Provides routines for Maximum likelihood,
+    Kalman filtering and smoothing, and Bayesian
+    analysis of Normal linear State Space models, also known as 
+    Dynamic Linear Models. 
+License: GPL (>= 2)
+NeedsCompilation: yes
