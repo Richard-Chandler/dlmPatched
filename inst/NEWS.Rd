@@ -1,6 +1,6 @@
 \title{Update history for patched (unofficial) version of package "dlm"}
 \name{NEWS}
-\section{Changes in version 1.0-601 (2024-02-13)}{
+\section{Changes in version 1.1-601 (2024-02-13)}{
   \itemize{
     \item{Edits to the \code{dlmLL} routine in \code{src/dlm.c}, to prevent errors coming from some versions of BLAS / LAPACK. 
     
@@ -8,7 +8,7 @@
   }
 }
 
-\section{Changes in version 1.0-600 (mid-2023)}{
+\section{Changes in version 1.1-600 (mid-2023)}{
   \itemize{
     \item{Richard Chandler created this unofficial copy of the \code{dlm} package, starting with version 1.0-6 of the original package. Memory leaks in \code{src/dlm.c} were fixed: these previously caused R to abort under Windows when working with complex dlms, and caused segfaults under Linux (Ubuntu). The changes are in lines 148, 806, 1371, 1997 and 3158 of file \code{src/dlm.c} in the 'official' version, where declarations
                 
