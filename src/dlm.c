@@ -91,6 +91,8 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
       numNA, *whereNA, numGood, *good, warn;
     int stvFF=INTEGER(tvFF)[0], stvV=INTEGER(tvV)[0], stvGG=INTEGER(tvGG)[0], 
 	stvW=INTEGER(tvW)[0], stvFV, *sJFF, *sJV, *sJGG, *sJW, nrJFF, nrJV, nrJGG, nrJW;
+    /* REC: added la_mn */
+	int la_mn;
     double *sy=REAL(y), *sm0, *sFF, *sV, *sGG, *sW, *sX, *Ux,  
         *Dx, *sqrtV, *sqrtW, 
         *sqrtVinv, *a, *Ux_prior, *Dx_prior, *f, *Uy, *Dy,
@@ -106,6 +108,17 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     max_m_p = m > p ? m : p;
     la_n = max_m_p;
     la_m = la_n + p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+
     n = length(y) / m; 
     sm0 = (double *) R_alloc( p, sizeof(double) );
     for (i = 0; i < p; i++)
@@ -147,8 +160,10 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     /* space for la_iwork */
     la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1; 
     F77_CALL(dgesdd)(&la_jobz,
                      &la_m, &la_n, tmpMat, &la_m, la_s,
                      la_u, &la_m,
@@ -157,8 +172,8 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     if (la_info != 0) 
         error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
-
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) ); */ 
+	
     /** preliminaries: compute svd of C0, etc... **/
     for (i = 0; i < p; i++) {
         for (j = 0; j<i; j++) 
@@ -382,16 +397,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		for (j = 0; j < p; j++) 
 		    tmpMat[i + p + j * la_m] = sqrtW[i + j * p];
 	    l = 2 * p;
-		/* REC: some versions of BLAS seem to do clever things  */
-		/* in earlier query for la_lwork, which means it can be */
-		/* too small at this point. Need to reset it therefore. */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &p, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 	    F77_CALL(dgesdd)(&la_jobz,
 			     &l, &p, tmpMat, &la_m, la_s,
 			     la_u, &la_m, la_vt, &max_m_p,
@@ -426,14 +431,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		    tmpMat[i + p + j * la_m] = sqrtV[i + j * m];
         
 	    l = p + m;
-		/* REC: reset la_lwork (see earlier comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &m, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 	    F77_CALL(dgesdd)(&la_jobz,
 			     &l, &m, tmpMat, &la_m, la_s,
 			     la_u, &la_m, la_vt, &max_m_p,
@@ -468,14 +465,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		    tmpMat[j + m + i * la_m] = tmpMat[i + m + j * la_m] = 0.0;
 	    }
 	    l = p + m;
-		/* REC: reset la_lwork (see earlier comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &p, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 	    F77_CALL(dgesdd)(&la_jobz,
 			     &l, &p, tmpMat, &la_m, la_s,
 			     la_u, &la_m, la_vt, &max_m_p,
@@ -554,14 +543,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		    for (j = 0; j < p; j++) 
 			tmpMat[i + p + j * la_m] = sqrtW[i + j * p];
 		l = 2 * p;
-		/* REC: reset la_lwork (see earlier comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &p, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 		F77_CALL(dgesdd)(&la_jobz,
 				 &l, &p, tmpMat, &la_m, la_s,
 				 la_u, &la_m, la_vt, &max_m_p,
@@ -588,14 +569,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 			    REAL(VECTOR_ELT(mod,3))[good[i] + m * good[j]]; /* V */
 		    tmpMat[i + la_m * j] = REAL(VECTOR_ELT(mod,3))[good[i] + m * good[j]];
 		}
-		/* REC: reset la_lwork (see earlier comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&numGood, &numGood, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 		F77_CALL(dgesdd)(&la_jobz,
 				 &numGood, &numGood, tmpMat, &la_m, la_s,
 				 la_u, &la_m, la_vt, &max_m_p,
@@ -654,14 +627,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		    for (j = 0; j < p; j++) 
 			tmpMat[i + p + j * la_m] = sqrtW[i + j * p];
 		l = 2 * p;
-		/* REC: reset la_lwork (see previous comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &p, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 		F77_CALL(dgesdd)(&la_jobz,
 				 &l, &p, tmpMat, &la_m, la_s,
 				 la_u, &la_m, la_vt, &max_m_p,
@@ -697,15 +662,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 
 		l = p + numGood;
 		
-		/* REC: reset la_lwork (see previous comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &numGood, tmpMat, &la_m, la_s,
-                la_u, &la_m,
-                la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
         F77_CALL(dgesdd)(&la_jobz,
 				 &l, &numGood, tmpMat, &la_m, la_s,
 				 la_u, &la_m,
@@ -742,14 +698,6 @@ SEXP dlmLL(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 		}
 		l = p + numGood;
 		
-		/* REC: reset la_lwork (see previous comment)  */
-        la_lwork = -1;
-        F77_CALL(dgesdd)(&la_jobz,
-				&l, &p, tmpMat, &la_m, la_s,
-                la_u, &la_m, la_vt, &max_m_p,
-                &tmp, &la_lwork, la_iwork, &la_info);
-		la_lwork = (int) tmp;
-		la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 		F77_CALL(dgesdd)(&la_jobz,
 				 &l, &p, tmpMat, &la_m, la_s,
 				 la_u, &la_m, la_vt, &max_m_p,
@@ -815,6 +763,8 @@ SEXP dlmLL0(SEXP y, SEXP mod)
     SEXP val;
     int i, j, k, l, p, m, n, t, max_m_p, la_m, la_n, la_info=0, la_lwork, *la_iwork,
       numNA, *whereNA, numGood, *good, warn;
+    /* REC: added la_mn */
+	int la_mn;
     double *sy=REAL(y), *sm0, *sFF, *sGG, *Ux,  
         *Dx, *sqrtV, *sqrtW, 
         *sqrtVinv, *a, *Ux_prior, *Dx_prior, *f, *Uy, *Dy,
@@ -830,6 +780,17 @@ SEXP dlmLL0(SEXP y, SEXP mod)
     max_m_p = m > p ? m : p;
     la_n = max_m_p;
     la_m = la_n + p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+
     n = length(y) / m; 
     sm0 = (double *) R_alloc( p, sizeof(double) );
     for (i = 0; i < p; i++)
@@ -869,8 +830,10 @@ SEXP dlmLL0(SEXP y, SEXP mod)
     /* space for la_iwork */
     la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
                      &la_m, &la_n, tmpMat, &la_m, la_s,
                      la_u, &la_m,
@@ -879,7 +842,7 @@ SEXP dlmLL0(SEXP y, SEXP mod)
     if (la_info != 0)
         error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 
     /** preliminaries: compute svd of C0, sqrt(V), sqrt(W), etc... **/
     for (i = 0; i < p; i++) {
@@ -1371,6 +1334,8 @@ SEXP dlmFilter(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
 	numNA, *whereNA, numGood, *good, warn;
     int stvFF=INTEGER(tvFF)[0], stvV=INTEGER(tvV)[0], stvGG=INTEGER(tvGG)[0], 
 	stvW=INTEGER(tvW)[0], stvFV, *sJFF, *sJV, *sJGG, *sJW, nrJFF, nrJV, nrJGG, nrJW;
+    /* REC: added la_mn */
+	int la_mn;
     double *sy=REAL(y), *sm0, *sFF, *sV, *sGG, *sW, *sX, *Ux,  
         *Dx, *sqrtV, *sqrtW, 
         *sqrtVinv, *a, *Ux_prior, *Dx_prior, *f, *Uy, *Dy,
@@ -1385,6 +1350,17 @@ SEXP dlmFilter(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     max_m_p = m > p ? m : p;
     la_n = max_m_p;
     la_m = la_n + p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+
     n = length(y) / m; 
     nPlus = n + 1;
     PROTECT(mR = allocMatrix(REALSXP, nPlus, p));
@@ -1434,8 +1410,10 @@ SEXP dlmFilter(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     /* space for la_iwork */
     la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
                      &la_m, &la_n, tmpMat, &la_m, la_s,
                      la_u, &la_m,
@@ -1444,7 +1422,7 @@ SEXP dlmFilter(SEXP y, SEXP mod, SEXP tvFF, SEXP tvV, SEXP tvGG, SEXP tvW)
     if (la_info != 0)
         error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 
     /** preliminaries: compute svd of C0, etc... **/
     for (i = 0; i < p; i++) {
@@ -2000,6 +1978,8 @@ SEXP dlmFilter0(SEXP y, SEXP mod)
     SEXP val, mR, UxR, DxR, aR, Ux_priorR, Dx_priorR, fR;
     int i, j, k, l, p, m, n, nPlus, t, max_m_p, la_m, la_n, la_info=0, la_lwork, *la_iwork,
 	numNA, *whereNA, numGood, *good, warn;
+    /* REC: added la_mn */
+	int la_mn;
     double *sy=REAL(y), *sm0, *sFF, *sGG, *Ux,  
         *Dx, *sqrtW, 
         *sqrtVinv, *a, *Ux_prior, *Dx_prior, *f, *Uy, *Dy,
@@ -2014,6 +1994,17 @@ SEXP dlmFilter0(SEXP y, SEXP mod)
     max_m_p = m > p ? m : p;
     la_n = max_m_p;
     la_m = la_n + p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+
     n = length(y) / m; 
     nPlus = n + 1;
     PROTECT(mR = allocMatrix(REALSXP, nPlus, p));
@@ -2060,8 +2051,10 @@ SEXP dlmFilter0(SEXP y, SEXP mod)
     /* space for la_iwork */
     la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
                      &la_m, &la_n, tmpMat, &la_m, la_s,
                      la_u, &la_m,
@@ -2070,7 +2063,7 @@ SEXP dlmFilter0(SEXP y, SEXP mod)
     if (la_info != 0)
         error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 
     /** preliminaries: compute svd of C0, sqrt(V), sqrt(W), etc... **/
     for (i = 0; i < p; i++) {
@@ -2523,6 +2516,8 @@ SEXP dlmSmooth0(SEXP mod, SEXP big)
 
     SEXP val, smoothR, US_R, DS_R;
     int t, i, j, k, p, n, nPlus, la_m, la_n, *la_iwork, la_lwork, la_info=0;
+    /* REC: added la_mn */
+	int la_mn;
     double *sm, *smooth, *DS, *US, *sGG, *DC, *UC, *DR, *UR, *Ht, *C, *Rinv, 
 	*sqrtWinv, tmp, tmp1,
 	*tmpMat, *dPointer, *dptr, *dPointer1, *dptr1, *dptr2,
@@ -2536,6 +2531,16 @@ SEXP dlmSmooth0(SEXP mod, SEXP big)
     n = nPlus - 1;
     la_m = 2 * p; 
     la_n = p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 
     PROTECT(smoothR = allocMatrix(REALSXP, nPlus, p));
     PROTECT(US_R = allocVector(VECSXP, nPlus));
@@ -2577,8 +2582,10 @@ SEXP dlmSmooth0(SEXP mod, SEXP big)
     Rinv = (double *) R_alloc( p * p, sizeof(double) );
     Ht = (double *) R_alloc( p * p, sizeof(double) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
 		     &la_m, &la_n, tmpMat, &la_m, la_s,
 		     la_u, &la_m,
@@ -2587,7 +2594,7 @@ SEXP dlmSmooth0(SEXP mod, SEXP big)
     if (la_info != 0)
 	error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 	
     /** preliminaries: compute sqrt(W^(-1)) **/
     dPointer = REAL(VECTOR_ELT(mod,7)); /* W */
@@ -2830,6 +2837,8 @@ SEXP dlmSmooth(SEXP mod, SEXP tvGG, SEXP tvW, SEXP big)
     int t, i, j, k, p, n, nPlus, la_m, la_n, *la_iwork, la_lwork, la_info=0,
 	stvGG=INTEGER(tvGG)[0], stvW=INTEGER(tvW)[0], *sJGG, *sJW, nrJGG, nrJW,
 	nr;
+    /* REC: added la_mn */
+	int la_mn;
     double *sm, *smooth, *DS, *US, *sGG, *DC, *UC, *DR, *UR, *Ht, *C, *Rinv, 
 	*sW, *sqrtWinv, *sX, tmp, tmp1,
 	*tmpMat, *dPointer, *dptr, *dPointer1, *dptr1, *dptr2,
@@ -2844,6 +2853,16 @@ SEXP dlmSmooth(SEXP mod, SEXP tvGG, SEXP tvW, SEXP big)
     n = nPlus - 1;
     la_m = 2 * p; 
     la_n = p;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
 
     PROTECT(smoothR = allocMatrix(REALSXP, nPlus, p));
     PROTECT(US_R = allocVector(VECSXP, nPlus));
@@ -2885,8 +2904,10 @@ SEXP dlmSmooth(SEXP mod, SEXP tvGG, SEXP tvW, SEXP big)
     Rinv = (double *) R_alloc( p * p, sizeof(double) );
     Ht = (double *) R_alloc( p * p, sizeof(double) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
 		     &la_m, &la_n, tmpMat, &la_m, la_s,
 		     la_u, &la_m,
@@ -2895,7 +2916,7 @@ SEXP dlmSmooth(SEXP mod, SEXP tvGG, SEXP tvW, SEXP big)
     if (la_info != 0)
 	error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 	
     /** preliminaries: compute sqrt(W^(-1)) if time-invariant **/
     if (stvW) {
@@ -3178,6 +3199,8 @@ SEXP dlmForecast(SEXP mod, SEXP nAhead)
     SEXP val, UxR, DxR, aR, fR, UyR, DyR;
     int i, j, k, l, p, m, n, nPlus, t, max_m_p, 
 	la_m, la_n, la_info=0, la_lwork, *la_iwork;
+    /* REC: added la_mn */
+	int la_mn;
     double *sFF, *sGG, *Ux, *Ux_next,  
         *Dx, *sqrtV, *sqrtW, *a, *f, *Uy, *Dy;
     double tmp, tmp1, *tmpMat, *la_s, *la_u, *la_vt, *la_work;
@@ -3188,6 +3211,17 @@ SEXP dlmForecast(SEXP mod, SEXP nAhead)
     max_m_p = m > p ? m : p;
     la_n = max_m_p;
     la_m = 2 * la_n;
+
+    /* REC: code la_work according to dgesdd documentation. The value here */
+    /* is twice the documented minimum, because (a) the documentation      */
+	/* states that "for good performance, [la_lwork] should generally be   */
+	/* larger (b) it's only for dimensioning the 1-d la_work array, so     */
+	/* there's no substantial storage overhead from making it bigger than  */
+	/* strictly necessary.                                                 */
+    la_mn = la_m < la_n ? la_m : la_n;
+	la_lwork = 2 * la_mn * ((4 * la_mn) + 7 );
+	la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+
     n = INTEGER(nAhead)[0]; 
     nPlus = n + 1;
     PROTECT(aR = allocMatrix(REALSXP, nPlus, p));
@@ -3221,8 +3255,10 @@ SEXP dlmForecast(SEXP mod, SEXP nAhead)
     /* space for la_iwork */
     la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );
 
+    /* REC: Next lines commented out in patched version, replaced  */
+	/*                   by earlier code block                     */
     /* ask for optimal size of work array */
-    la_lwork = -1;
+    /*la_lwork = -1;
     F77_CALL(dgesdd)(&la_jobz,
                      &la_m, &la_n, tmpMat, &la_m, la_s,
                      la_u, &la_m,
@@ -3231,7 +3267,7 @@ SEXP dlmForecast(SEXP mod, SEXP nAhead)
     if (la_info != 0)
         error("error code %d from Lapack routine dgesdd", la_info);
     la_lwork = (int) tmp;
-    la_work = (double *) R_alloc( la_lwork, sizeof(double) );
+    la_work = (double *) R_alloc( la_lwork, sizeof(double) );*/
 
     /** preliminaries: compute svd of C0, sqrt(V), sqrt(W), etc... **/
     for (i = 0; i < p; i++) {
