@@ -10,7 +10,7 @@
 
 \section{Changes in version 1.1-600 (mid-2023)}{
   \itemize{
-    \item{Richard Chandler created this unofficial copy of the \code{dlm} package, starting with version 1.0-6 of the original package. Memory leaks in \code{src/dlm.c} were fixed: these previously caused R to abort under Windows when working with complex dlms, and caused segfaults under Linux (Ubuntu). The changes are in lines 148, 806, 1371, 1997 and 3158 of file \code{src/dlm.c} in the 'official' version, where declarations
+    \item{Richard Chandler created this unofficial copy of the \code{dlm} package, starting with version 1.1-6 of the original package. Memory leaks in \code{src/dlm.c} were fixed: these previously caused R to abort under Windows when working with complex dlms, and caused segfaults under Linux (Ubuntu). The changes are in lines 148, 806, 1371, 1997 and 3158 of file \code{src/dlm.c} in the 'official' version, where declarations
                 
     \code{la_iwork = (int *) R_alloc( 8 * p, sizeof(int) );}
                 
@@ -18,7 +18,7 @@
                 
     \code{la_iwork = (int *) R_alloc( 8 * la_n, sizeof(int) );}
 
-    The \code{la_iwork} variable is used to define storage requirements for the LAPACK \code{dgesdd} function: see the documentation for that function \href{https://netlib.org/lapack/explore-html/df/d22/group__gesdd_ga8941e5ff50de36580dae8940015e9cb0.html#ga8941e5ff50de36580dae8940015e9cb0}{\code{documentation for that function}} for justification of the revised values.
+    The \code{la_iwork} variable is used to define storage requirements for the LAPACK \code{dgesdd} function: see the \href{https://netlib.org/lapack/explore-html/df/d22/group__gesdd_ga8941e5ff50de36580dae8940015e9cb0.html#ga8941e5ff50de36580dae8940015e9cb0}{\code{documentation for that function}} for justification of the revised values.
     }
   }
 }
