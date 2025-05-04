@@ -1,10 +1,10 @@
 Package: dlm
 Title: Bayesian and Likelihood Analysis of Dynamic Linear Models (patched version - unofficial)
-Version: 1.1-601
-Date: 2024-02-13
+Version: 1.1-602
+Date: 2025-05-04
 Suggests: MASS
 Imports: stats, utils, methods, grDevices, graphics
-Authors@R: c(
+Author: c(
     person("Giovanni", "Petris", email = "GPetris@uark.edu", role = c("aut", "cre")),
     person("Wally", "Gilks", role = "ctb", comment = "Author of original C code for ARMS"),
     person("Richard", "Chandler", role="ctb", comment="Responsible for memory leak / BLAS fixes"))
