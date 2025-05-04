@@ -1,5 +1,11 @@
 \title{Update history for patched (unofficial) version of package "dlm"}
 \name{NEWS}
+\section{Changes in version 1.1-602 (2025-05-04)}{
+  \itemize{
+    \item{Fixes to code in \code{src/arms-R.c}, to prevent installation errors flagged in R v4.5.}
+  }
+}
+
 \section{Changes in version 1.1-601 (2024-02-13)}{
   \itemize{
     \item{Edits to the \code{dlmLL} routine in \code{src/dlm.c}, to prevent errors coming from some versions of BLAS / LAPACK. 
